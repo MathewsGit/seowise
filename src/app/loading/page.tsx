@@ -1,124 +1,161 @@
-// src/app/loading/page.tsx
-'use client';
+"use client";
 
-import React, { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import styles from './page.module.css';
-import { AnimatedPipeline, ProgressBar } from '@/components/ui/LoadingVisuals';
-import { Button } from '@/components/ui/Button';
-import { WarningModal } from '@/components/ui/Modal';
+import { useEffect, useState, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getAuditStatus, getAuditProgress, deleteAudit } from "@/lib/audit-api";
+import { pushHistoryEntry } from "@/lib/audit-history-store";
+import { AnimatedPipeline, ProgressBar } from "@/components/ui/LoadingVisuals";
+import { WarningModal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
+import styles from "./page.module.css";
+import { Header } from "@/components/layout/Header";
 
-function LoadingOrchestrator() {
+const DEFAULT_MESSAGES = [
+  "Discovering pages...",
+  "Parsing HTML...",
+  "Checking technical SEO...",
+  "Analyzing on-page content...",
+  "Running Lighthouse metrics...",
+  "Compiling final report..."
+];
+
+function deriveStageIndex(phase: string | null, progressPct: number): number {
+  if (phase) {
+    const lower = phase.toLowerCase();
+    if (lower.includes("fetch") || lower.includes("discover")) return 0;
+    if (lower.includes("pars")) return 1;
+    if (lower.includes("technical") || lower.includes("robots") || lower.includes("sitemap") || lower.includes("canonical")) return 2;
+    if (lower.includes("on-page") || lower.includes("metadata") || lower.includes("heading") || lower.includes("schema")) return 3;
+    if (lower.includes("performance") || lower.includes("lighthouse") || lower.includes("vitals")) return 4;
+    if (lower.includes("compil") || lower.includes("aggregat") || lower.includes("report")) return 5;
+  }
+  // Fallback to proportional estimate
+  if (progressPct < 15) return 0;
+  if (progressPct < 30) return 1;
+  if (progressPct < 50) return 2;
+  if (progressPct < 70) return 3;
+  if (progressPct < 90) return 4;
+  return 5;
+}
+
+function LoadingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const url = searchParams.get('url') || 'https://unknown.com';
-  
+  const auditId = searchParams.get("auditId");
+  const targetUrl = searchParams.get("url") || "the website";
+
   const [progress, setProgress] = useState(0);
   const [stageIndex, setStageIndex] = useState(0);
-  const [statusMessage, setStatusMessage] = useState('Initializing scan...');
-  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(DEFAULT_MESSAGES[0]);
+  const [justCrawled, setJustCrawled] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  
+  const pollFailures = useRef(0);
+  const isTerminal = useRef(false);
 
-  // 1. Simulation of Engine progress (Pure state update only)
   useEffect(() => {
-    if (isCancelModalOpen) return;
+    if (!auditId || isTerminal.current) return;
 
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        const next = prev + 1.5;
-        // Just return the clamped value, NO side-effects (like router.push) here!
-        if (next >= 100) return 100; 
-        return next;
-      });
-    }, 150);
+    let timeoutId: NodeJS.Timeout;
 
-    return () => clearInterval(interval);
-  }, [isCancelModalOpen]);
+    const poll = async () => {
+      try {
+        const status = await getAuditStatus(auditId);
+        pollFailures.current = 0; // Reset on success
 
-  // 2. Navigation side-effect (Triggered when progress hits 100)
-  useEffect(() => {
-    if (progress >= 100) {
-      router.push(`/dashboard?url=${encodeURIComponent(url)}`);
+        let pct = Math.round((status.pagesCrawled / Math.max(status.pagesTotal, 1)) * 100);
+        if (status.status !== "completed") {
+          pct = Math.min(pct, 99); // Clamp to 99 until finished
+        }
+        
+        setProgress(pct);
+        setStageIndex(deriveStageIndex(status.currentPhase, pct));
+        
+        if (status.currentPhase) {
+          // Title case and truncate phase string
+          const formatted = status.currentPhase.charAt(0).toUpperCase() + status.currentPhase.slice(1).split('\n')[0];
+          setStatusMessage(formatted);
+        } else {
+          setStatusMessage(DEFAULT_MESSAGES[deriveStageIndex(null, pct)]);
+        }
+
+        // Optional supplementary poll for progress
+        try {
+          const progressData = await getAuditProgress(auditId);
+          if (progressData && progressData.length > 0) {
+            setJustCrawled(progressData[0].url);
+          }
+        } catch (e) {
+          // Ignore failures on supplementary data
+        }
+
+        if (status.status === "completed" || status.status === "failed") {
+          isTerminal.current = true;
+          
+          pushHistoryEntry({
+            id: status.id,
+            startUrl: status.startUrl,
+            status: status.status,
+            pagesCrawled: status.pagesCrawled,
+            pagesTotal: status.pagesTotal,
+            ranLighthouse: status.lighthouseTotal > 0,
+            startedAt: status.startedAt,
+            completedAt: status.completedAt
+          });
+
+          if (status.status === "completed") {
+            router.push(`/dashboard?auditId=${auditId}`);
+          } else {
+            router.push(`/audit-failed?auditId=${auditId}&errorCode=${status.errorCode || 'unknown'}&url=${encodeURIComponent(targetUrl)}`);
+          }
+          return; // Stop polling
+        }
+
+        timeoutId = setTimeout(poll, 2000);
+      } catch (error) {
+        pollFailures.current += 1;
+        if (pollFailures.current >= 3) {
+          isTerminal.current = true;
+          router.push(`/audit-failed?auditId=${auditId}&errorCode=network_failure&url=${encodeURIComponent(targetUrl)}`);
+        } else {
+          timeoutId = setTimeout(poll, 2000); // Retry with backoff
+        }
+      }
+    };
+
+    poll();
+    return () => clearTimeout(timeoutId);
+  }, [auditId, router, targetUrl]);
+
+  const handleCancel = () => {
+    if (auditId) {
+      deleteAudit(auditId).catch(() => {}); // Fire and forget best-effort
     }
-  }, [progress, router, url]);
-
-  // 3. Sync Pipeline Stage & Status Message to Progress
-  useEffect(() => {
-    if (progress < 15) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setStageIndex(0); // Fetching
-      setStatusMessage('Requesting document over network...');
-    } else if (progress < 30) {
-      setStageIndex(1); // Parsing
-      setStatusMessage('Parsing HTML and discovering linked assets...');
-    } else if (progress < 50) {
-      setStageIndex(2); // Technical checks
-      setStatusMessage('Checking robots.txt, canonicals, and sitemap...');
-    } else if (progress < 70) {
-      setStageIndex(3); // On-page checks
-      setStatusMessage('Evaluating metadata, headings, and schema...');
-    } else if (progress < 90) {
-      setStageIndex(4); // Performance checks
-      setStatusMessage('Measuring LCP, CLS, and main-thread execution...');
-    } else {
-      setStageIndex(5); // Compiling report
-      setStatusMessage('Aggregating scores and writing final report...');
-    }
-  }, [progress]);
-
-  const handleCancelAudit = () => {
-    router.push('/audit');
+    router.push("/audit");
   };
-
-  const showEstimate = progress > 15 && progress < 100;
 
   return (
     <>
-      <div className={styles.content}>
-        <div className={styles.urlTarget} aria-label="Auditing URL">
-          {url}
+      <div className={styles.targetDisplay}>Auditing {targetUrl}</div>
+      <div className={styles.progressSection}>
+        <AnimatedPipeline activeStage={stageIndex} />
+        <ProgressBar progress={progress} />
+        <div className={styles.statusContainer}>
+          <div className={styles.statusMessage}>{statusMessage}</div>
+          {justCrawled && <div className="body-sm">Just crawled: {justCrawled}</div>}
         </div>
-
-        <AnimatedPipeline currentStageIndex={stageIndex} />
-
-        <div className={styles.progressSection}>
-          <div className={styles.progressHeader}>
-            <span className={styles.percentage} aria-live="polite">
-              {Math.floor(progress)}%
-            </span>
-            {showEstimate && (
-              <span className={styles.estimate}>
-                ~ {Math.ceil((100 - progress) / 10)}s remaining
-              </span>
-            )}
-          </div>
-          
-          <ProgressBar progress={progress} />
-          
-          <div className={styles.statusContainer} aria-live="polite">
-            <span key={statusMessage} className={styles.statusMessage}>
-              {statusMessage}
-            </span>
-          </div>
-        </div>
-
-        <div className={styles.cancelWrapper}>
-          <Button 
-            variant="tertiary" 
-            size="sm" 
-            onClick={() => setIsCancelModalOpen(true)}
-          >
-            Cancel audit
-          </Button>
-        </div>
+        <div className="display-lg">{progress}%</div>
       </div>
+      <Button variant="secondary" onClick={() => setShowCancelModal(true)}>
+        Cancel Audit
+      </Button>
 
-      <WarningModal
-        isOpen={isCancelModalOpen}
-        onClose={() => setIsCancelModalOpen(false)}
-        title="Cancel this audit?"
-        content="Are you sure you want to cancel? All progress will be lost and no report will be generated."
-        destructiveActionLabel="Cancel audit"
-        onDestructiveAction={handleCancelAudit}
+      <WarningModal 
+        isOpen={showCancelModal} 
+        onConfirm={handleCancel} 
+        onCancel={() => setShowCancelModal(false)}
+        title="Cancel Audit"
+        description="Are you sure you want to stop this audit? Progress will be lost."
       />
     </>
   );
@@ -126,10 +163,15 @@ function LoadingOrchestrator() {
 
 export default function LoadingPage() {
   return (
-    <main className={styles.pageWrapper}>
-      <Suspense fallback={<div className={styles.content} style={{ height: '400px' }} />}>
-        <LoadingOrchestrator />
-      </Suspense>
-    </main>
+    <div className={styles.page}>
+      <Header minimal />
+      <main className={styles.main}>
+        <div className={styles.content}>
+          <Suspense fallback={<div>Loading...</div>}>
+            <LoadingContent />
+          </Suspense>
+        </div>
+      </main>
+    </div>
   );
 }

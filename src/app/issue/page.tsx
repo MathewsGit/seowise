@@ -1,97 +1,118 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import styles from './page.module.css';
-import { Badge } from '@/components/ui/Badge';
-import { Tag } from '@/components/ui/Tag';
-import { DataTable, Column } from '@/components/ui/DataTable';
-import { Accordion } from '@/components/ui/Accordion';
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { getAuditResults } from "@/lib/audit-api";
+import { AuditIssue } from "@/types/audit";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
+import { ErrorCard } from "@/components/ui/ErrorCard";
+import styles from "./page.module.css";
+import { mapEngineIssueToUi } from "@/lib/issue-mapping";
+import { Badge } from "@/components/ui/Badge";
 
-export default function IssueDetailPage() {
-  const affectedUrls = [
-    { id: '1', url: 'https://example.com/blog/article-1' },
-    { id: '2', url: 'https://example.com/blog/article-2' },
-  ];
+// Simple in-memory cache to prevent refetching if navigating straight from dashboard
+const issueCache: Record<string, AuditIssue[]> = {};
 
-  const columns: Column<typeof affectedUrls[0]>[] = [
-    {
-      key: 'url',
-      label: 'Affected URL',
-      isMonospace: true,
-      render: (row) => (
-        <a href={row.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--signal-amber)', textDecoration: 'none' }}>
-          {row.url} ↗
-        </a>
-      )
+function IssueContent() {
+  const searchParams = useSearchParams();
+  const auditId = searchParams.get("auditId");
+  const issueId = searchParams.get("issueId");
+
+  const [issue, setIssue] = useState<AuditIssue | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!auditId || !issueId) {
+      setError("Missing audit ID or issue ID.");
+      setIsLoading(false);
+      return;
     }
-  ];
 
-  const fixSteps = [
-    {
-      id: 'step1',
-      title: '1. Identify the missing tag',
-      content: 'Review the <head> section of the affected URLs. You will notice the <title> element is either completely missing or empty.'
-    },
-    {
-      id: 'step2',
-      title: '2. Add a descriptive title',
-      content: (
-        <>
-          Insert a unique, descriptive title inside the document head. Ensure it is between 50-60 characters for optimal SERP display.
-          <pre className={styles.codeSnippet}>
-            {`<!DOCTYPE html>\n<html>\n  <head>\n    <title>Optimal Page Title Here | Brand</title>\n  </head>\n</html>`}
-          </pre>
-        </>
-      )
-    }
-  ];
+    const loadIssue = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        let issues = issueCache[auditId];
+        if (!issues) {
+          const results = await getAuditResults(auditId);
+          issues = results.issues;
+          issueCache[auditId] = issues;
+        }
+
+        const found = issues.find((i, index) => (i.id || String(index)) === issueId);
+        if (found) {
+          setIssue(found);
+        } else {
+          setError("Issue not found in this audit.");
+        }
+      } catch (err: any) {
+        setError(err.message || "Failed to load issue details.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadIssue();
+  }, [auditId, issueId]);
+
+  if (error) {
+    return (
+      <div className={styles.content}>
+        <ErrorCard title="Error loading issue" message={error} onRetry={() => window.location.reload()} />
+      </div>
+    );
+  }
+
+  if (isLoading || !issue) {
+    return <div className={styles.content}>Loading issue details...</div>;
+  }
+
+  const ui = mapEngineIssueToUi(issue);
 
   return (
-    <div className={`${styles.pageWrapper} light-theme`}>
-      <main className={styles.panel}>
-        <header className={styles.header}>
-          <Link href="/dashboard" className={styles.breadcrumb}>← Back to issues</Link>
-          <div className={styles.titleRow}>
-            <h1 className={styles.title}>Missing Title Tag</h1>
-            <div className={styles.badgeGroup}>
-              <Badge severity="fail" label="Critical" />
-              <Tag label="Metadata" />
-            </div>
-          </div>
-        </header>
+    <div className={styles.content}>
+      <div className={styles.issueHeader}>
+        <Badge variant={ui.severity}>{ui.severity.toUpperCase()}</Badge>
+        <Badge variant="neutral">{ui.categoryTag}</Badge>
+      </div>
+      <h1 className="heading-lg mt-4">{issue.title}</h1>
+      <p className="body-lg mt-2">{issue.description}</p>
 
-        <div className={styles.content}>
-          <section className={styles.section}>
-            <div className={styles.titleRow}>
-              <h2 className={styles.sectionTitle}>Description</h2>
-              <div className={styles.tooltipWrapper} data-tooltip="Based on Critical severity × 2 affected URLs">
-                <Badge severity="notice" label="Priority: Fix first" />
-              </div>
-            </div>
-            <p className={styles.description}>
-              The <code>&lt;title&gt;</code> tag is a crucial on-page SEO factor. It tells search engines and users what the page is about. Pages without a title tag may struggle to rank and will display sub-optimally in search results, often forcing the search engine to generate a title from on-page text.
-            </p>
-          </section>
+      {issue.fixSteps && issue.fixSteps.length > 0 && (
+        <section className={styles.section}>
+          <h2 className="heading-md">How to fix</h2>
+          <ol className={styles.stepsList}>
+            {issue.fixSteps.map((step, idx) => (
+              <li key={idx} className="body-md">{step}</li>
+            ))}
+          </ol>
+        </section>
+      )}
 
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Affected URLs ({affectedUrls.length})</h2>
-            <DataTable columns={columns} data={affectedUrls} ariaLabel="Affected URLs table" />
-          </section>
+      <section className={styles.section}>
+        <h2 className="heading-md">Affected URLs ({issue.affectedUrls.length})</h2>
+        <ul className={styles.urlsList}>
+          {issue.affectedUrls.map((url, idx) => (
+            <li key={idx} className="mono-sm text-ink-800 break-all">{url}</li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  );
+}
 
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Steps to fix</h2>
-            <Accordion items={fixSteps} />
-          </section>
-
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Visual Example</h2>
-            <div className={styles.visualPlaceholder} aria-hidden="true">
-              [ SERP Snippet Preview: Truncated vs properly-sized title ]
-            </div>
-          </section>
-        </div>
+export default function IssuePage() {
+  return (
+    <div className={styles.page}>
+      <Header />
+      <main className={styles.main}>
+        <Suspense fallback={<div>Loading...</div>}>
+          <IssueContent />
+        </Suspense>
       </main>
+      <Footer />
     </div>
   );
 }

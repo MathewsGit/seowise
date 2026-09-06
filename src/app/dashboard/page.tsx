@@ -1,185 +1,198 @@
-'use client';
+"use client";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { getAuditResults } from "@/lib/audit-api";
+import { mapEngineIssueToUi } from "@/lib/issue-mapping";
+import { AuditResults } from "@/types/audit";
+import { ScoreGauge } from "@/components/ui/ScoreGauge";
+import { MetricCard } from "@/components/ui/MetricCard";
+import { DataTable } from "@/components/ui/DataTable";
+import { IssueCard } from "@/components/ui/IssueCard";
+import { ErrorCard } from "@/components/ui/ErrorCard";
+import { Button } from "@/components/ui/Button";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
+import styles from "./page.module.css";
+import { BarChart } from "@/components/charts/BarChart";
+import { CoreWebVitalsGauge } from "@/components/charts/CoreWebVitalsGauge";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import styles from './page.module.css';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { MetricCard } from '@/components/ui/MetricCard';
-import { Tabs } from '@/components/ui/Tabs';
-import { DataTable } from '@/components/ui/DataTable';
-import { Tag } from '@/components/ui/Tag';
-import { CoreWebVitalsGauge } from '@/components/charts/CoreWebVitalsGauge';
-import { ForceGraph } from '@/components/charts/ForceGraph';
-import { ExportModal } from '@/components/ui/Modal';
-import { IssueCard } from '@/components/ui/IssueCard';
-
-const TABS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'technical', label: 'Technical' },
-  { id: 'onpage', label: 'On-page' },
-  { id: 'performance', label: 'Performance' },
-  { id: 'issues', label: 'Issues' },
-];
-
-export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [isExportOpen, setIsExportOpen] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-
-  const handleExport = (format: string) => {
-    setIsExporting(true);
-    setTimeout(() => {
-      setIsExporting(false);
-      setIsExportOpen(false);
-      alert(`Exported as ${format.toUpperCase()}`);
-    }, 1500);
+function computeCategoryScores(results: AuditResults) {
+  const deduct = (issues: any[], typeMatch: string[]) => {
+    let penalty = 0;
+    issues.forEach(i => {
+      // Safely grab the type string, falling back to an empty string if it's missing
+      const issueTypeStr = (i.type || i.issueType || "").toLowerCase();
+      
+      if (typeMatch.some(t => issueTypeStr.includes(t))) {
+        penalty += i.severity === "critical" ? 20 : i.severity === "warning" ? 10 : 2;
+      }
+    });
+    return penalty;
   };
 
+  const techPenalty = deduct(results.issues, ["robots", "canonical", "sitemap", "status", "server"]);
+  const onPagePenalty = deduct(results.issues, ["title", "meta", "heading", "image", "content"]);
+  
+  const techScore = Math.max(0, 100 - techPenalty);
+  const onPageScore = Math.max(0, 100 - onPagePenalty);
+  const accessibilityScore = results.lighthouse[0]?.accessibilityScore ? Math.round(results.lighthouse[0].accessibilityScore * 100) : null;
+  const performanceScore = results.lighthouse[0]?.performanceScore ? Math.round(results.lighthouse[0].performanceScore * 100) : null;
+  const mobileScore = results.lighthouse.find(l => l.strategy === "mobile")?.seoScore 
+    ? Math.round(results.lighthouse.find(l => l.strategy === "mobile")!.seoScore! * 100) : null;
+
+  const validScores = [techScore, onPageScore, accessibilityScore, performanceScore].filter(s => s !== null) as number[];
+  const overallScore = validScores.length ? Math.round(validScores.reduce((a,b)=>a+b,0)/validScores.length) : null;
+
+  return { Technical: techScore, OnPage: onPageScore, Performance: performanceScore, Accessibility: accessibilityScore, Mobile: mobileScore, Overall: overallScore };
+}
+
+function DashboardContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const auditId = searchParams.get("auditId");
+  
+  const [results, setResults] = useState<AuditResults | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchResults = async () => {
+    if (!auditId) {
+      setError("No audit ID provided in URL.");
+      setIsLoading(false);
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await getAuditResults(auditId);
+      setResults(data);
+    } catch (err: any) {
+      setError(err.message || "Failed to load audit results.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchResults();
+  }, [auditId]);
+
+  if (error) {
+    return (
+      <div className={styles.errorWrapper}>
+        {/* We map our general error into the existing crawl-error card format */}
+        <ErrorCard 
+          statusCode="Error" 
+          url={error || "Failed to load audit results"} 
+          onRetry={fetchResults} 
+        />
+      </div>
+    );
+  }
+
+  const handleExport = () => {
+    if (!results) return;
+    const blob = new Blob([JSON.stringify(results, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `seowise-export-${results.audit.id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const domain = results ? new URL(results.audit.startUrl).hostname : "Loading...";
+  const timestamp = results ? new Date(results.audit.completedAt ?? results.audit.startedAt).toLocaleString() : "Loading...";
+  const scores = results ? computeCategoryScores(results) : { Technical: null, OnPage: null, Performance: null, Accessibility: null, Mobile: null, Overall: null };
+  const mappedIssues = results ? results.issues.map((i, index) => ({ 
+    ...i, 
+    id: i.id || String(index), // Fallback to index if no ID exists
+    ui: mapEngineIssueToUi(i) 
+  })) : [];
   return (
-    // The `light-theme` class applies global CSS overrides for paper-050 backgrounds
-    <div className={`${styles.pageWrapper} light-theme`}>
-      <header className={styles.header}>
-        <div className={styles.headerLeft}>
-          <Link href="/audit" className={styles.breadcrumb}>← New audit</Link>
-          <h1 className={styles.domainTitle}>
-            example.com
-            <Badge severity="notice" label="Desktop mode" />
-          </h1>
-          <span className={styles.timestamp}>Scanned on {new Date().toLocaleString()}</span>
+    <div className={styles.container}>
+      <div className={styles.dashboardHeader}>
+        <div>
+          <h1 className="heading-lg">{domain}</h1>
+          <p className="body-sm text-ink-800">Scanned on {timestamp}</p>
         </div>
         <div className={styles.headerActions}>
-          <Button variant="secondary" size="sm">Re-run</Button>
-          <Button variant="primary" size="sm" onClick={() => setIsExportOpen(true)}>Export</Button>
+          <Button variant="secondary" onClick={handleExport} disabled={isLoading}>Export JSON</Button>
         </div>
-      </header>
-
-      <div className={styles.layout}>
-        {/* Tablet Tabs */}
-        <div className={styles.navContainer}>
-          <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} ariaLabel="Dashboard sections" />
-        </div>
-
-        {/* Desktop Left Rail */}
-        <nav className={styles.leftRail} aria-label="Sidebar navigation">
-          {TABS.map(tab => (
-            <button 
-              key={tab.id}
-              className={`${styles.railLink} ${activeTab === tab.id ? styles.active : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-
-        {/* Main Content */}
-        <main className={styles.mainContent}>
-          
-          {/* Always show Score Row at the top */}
-          <section className={styles.section}>
-            <div className={styles.scoreRow}>
-              <MetricCard label="Overall" score={78} delta={2} />
-              <MetricCard label="Technical" score={92} delta={0} />
-              <MetricCard label="On-page" score={65} delta={-4} />
-              <MetricCard label="Performance" score={81} delta={12} />
-              <MetricCard label="Accessibility" score={98} />
-              <MetricCard label="Mobile" score={null} />
-            </div>
-          </section>
-
-          {/* Conditional Sections based on active tab */}
-          {(activeTab === 'overview' || activeTab === 'performance') && (
-            <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>Core Web Vitals</h2>
-              <div className={styles.cwvGrid}>
-                <CoreWebVitalsGauge 
-                  metric="LCP" value={2.1} formattedValue="2.1s"
-                  thresholdGood={2.5} thresholdPoor={4.0} maxAxisValue={6.0}
-                  history={[3.2, 2.8, 2.9, 2.4, 2.1, 2.1]} 
-                />
-                <CoreWebVitalsGauge 
-                  metric="INP" value={180} formattedValue="180ms"
-                  thresholdGood={200} thresholdPoor={500} maxAxisValue={800}
-                  history={[240, 210, 190, 195, 180, 180]} 
-                />
-                <CoreWebVitalsGauge 
-                  metric="CLS" value={0.34} formattedValue="0.34"
-                  thresholdGood={0.1} thresholdPoor={0.25} maxAxisValue={0.5}
-                  history={[0.12, 0.15, 0.28, 0.35, 0.34, 0.34]} 
-                />
-              </div>
-            </section>
-          )}
-
-          {(activeTab === 'overview' || activeTab === 'technical') && (
-            <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>Internal Link Map</h2>
-              <div className={styles.mapContainer}>
-                <p className={styles.mobileTableWarning}>Graph visualization is disabled on small screens to ensure usability. View the data table below.</p>
-                <div className={styles.hideOnMobile}>
-                  <ForceGraph 
-                    ariaLabel="Internal link topology graph"
-                    nodes={[
-                      { url: 'https://example.com/', status: 200, inbound: 45, outbound: 12, isCenter: true },
-                      { url: 'https://example.com/about', status: 200, inbound: 12, outbound: 4 },
-                      { url: 'https://example.com/contact', status: 301, inbound: 8, outbound: 1 },
-                      { url: 'https://example.com/blog', status: 200, inbound: 22, outbound: 5 },
-                      { url: 'https://example.com/old-page', status: 404, inbound: 3, outbound: 0 },
-                    ]}
-                    links={[
-                      { source: 'https://example.com/', target: 'https://example.com/about' },
-                      { source: 'https://example.com/', target: 'https://example.com/contact' },
-                      { source: 'https://example.com/', target: 'https://example.com/blog' },
-                      { source: 'https://example.com/about', target: 'https://example.com/old-page' },
-                    ]}
-                    onNodeClick={(url) => console.log("Clicked", url)}
-                  />
-                </div>
-              </div>
-            </section>
-          )}
-
-          {(activeTab === 'overview' || activeTab === 'issues') && (
-            <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>Detailed Issue List</h2>
-              
-              <div className={styles.filters}>
-                <Badge severity="fail" label="Critical" />
-                <Badge severity="warning" label="Warning" />
-                <Badge severity="notice" label="Notice" />
-                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--line-200)', margin: '0 8px' }} />
-                <Tag label="Metadata" isActive />
-                <Tag label="Headings" />
-                <Tag label="Performance" />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--line-200)' }}>
-                <IssueCard 
-                  severity="fail" title="Missing Title Tag" urlCount={4} 
-                  summary="Add a unique <title> tag to these pages." onClick={() => {}} 
-                />
-                <IssueCard 
-                  severity="warning" title="Multiple H1 Tags found" urlCount={12} 
-                  summary="Ensure only one <h1> tag is present per document." onClick={() => {}} 
-                />
-                <IssueCard 
-                  severity="notice" title="Meta description too short" urlCount={1} 
-                  summary="Expand meta description to 120-160 characters." onClick={() => {}} 
-                />
-              </div>
-            </section>
-          )}
-
-        </main>
       </div>
 
-      <ExportModal 
-        isOpen={isExportOpen} 
-        onClose={() => setIsExportOpen(false)} 
-        isExporting={isExporting} 
-        onExport={handleExport} 
-      />
+      <div className={styles.gaugesGrid}>
+        <ScoreGauge score={scores.Overall} label="Overall" loading={isLoading} />
+        <ScoreGauge score={scores.Technical} label="Technical" loading={isLoading} />
+        <ScoreGauge score={scores.OnPage} label="On-Page" loading={isLoading} />
+        <ScoreGauge score={scores.Performance} label="Performance" loading={isLoading} />
+      </div>
+
+      <div className={styles.metricsGrid}>
+        <MetricCard label="Pages Crawled" score={results?.audit.pagesCrawled ?? null} loading={isLoading} />
+        <MetricCard label="Issues Found" score={results?.issues.length ?? null} loading={isLoading} />
+        <MetricCard label="Avg Response Time (ms)" score={results && results.pages.length ? Math.round(results.pages.reduce((acc, p) => acc + p.responseTimeMs, 0) / results.pages.length) : null} loading={isLoading} />
+      </div>
+
+      <div className={styles.contentSections}>
+        <section className={styles.section}>
+          <h2 className="heading-md">Issues Discovered</h2>
+          <div className={styles.issuesList}>
+            {isLoading ? <div>Loading issues...</div> : 
+             mappedIssues.length === 0 ? <p>No issues found!</p> :
+             mappedIssues.map(issue => (
+               <IssueCard 
+                 key={issue.id} 
+                 title={issue.title} 
+                 severity={issue.ui.severity as any} 
+                 summary={issue.description || issue.howToFix || "No description provided."} 
+                 urlCount={issue.affectedUrls ? issue.affectedUrls.length : 1}
+                 onClick={() => router.push(`/issue?auditId=${auditId}&issueId=${issue.id}`)}
+               />
+             ))}
+          </div>
+        </section>
+
+        <section className={styles.section}>
+          <h2 className="heading-md">Page Details</h2>
+          {isLoading ? (
+            <div>Loading page details...</div>
+          ) : (
+            <DataTable 
+              columns={[
+                { key: "url", label: "URL", isMonospace: true },
+                { key: "statusCode", label: "Status" },
+                { key: "title", label: "Title" },
+                { key: "wordCount", label: "Word Count" },
+                { key: "indexable", label: "Indexable" }
+              ]}
+              data={results?.pages.map((p, i) => ({
+                id: p.id || String(i),
+                url: p.url,
+                statusCode: p.statusCode.toString(),
+                title: p.title || "-",
+                wordCount: p.wordCount.toString(),
+                indexable: p.isIndexable ? "Yes" : "No"
+              })) || []}
+            />
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <div className={styles.page}>
+      <Header />
+      <main className={styles.main}>
+        <Suspense fallback={<div className={styles.loadingMain}>Loading Dashboard...</div>}>
+          <DashboardContent />
+        </Suspense>
+      </main>
+      <Footer />
     </div>
   );
 }

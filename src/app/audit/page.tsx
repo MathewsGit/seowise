@@ -1,148 +1,113 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import styles from './page.module.css';
-import { Input } from '@/components/ui/Input';
-import { SegmentedControl } from '@/components/ui/SegmentedControl';
-import { Select } from '@/components/ui/Select';
-import { Button } from '@/components/ui/Button';
-
-// SVG Logo Mark for minimal header
-const LogoMark = () => (
-  <svg className={styles.logoMark} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M3 12h4l3-8 4 16 3-8h4" />
-  </svg>
-);
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { startAudit } from "@/lib/audit-api";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import styles from "./page.module.css";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 
 function AuditForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  const [url, setUrl] = useState('');
-  const [device, setDevice] = useState('desktop');
-  const [depth, setDepth] = useState('standard');
-  const [speed, setSpeed] = useState('standard');
+  const [url, setUrl] = useState(searchParams.get("url") || "");
+  const [device, setDevice] = useState("desktop");
+  const [depth, setDepth] = useState("standard");
+  const [speed, setSpeed] = useState("normal");
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Pre-fill URL from query string if available
-  useEffect(() => {
-    const queryUrl = searchParams.get('url');
-    if (queryUrl) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setUrl(queryUrl);
-    }
-  }, [searchParams]);
-
-  const handleStartAudit = (e: React.FormEvent) => {
+  const handleStartAudit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url) return;
     
     setIsSubmitting(true);
-    
-    // Simulate job API call and redirect to Loading screen
-    // In reality, this would submit to the open-seo engine and return a jobId
-    const query = new URLSearchParams({
-      url,
-      device,
-      depth,
-      speed
-    }).toString();
-    
-    router.push(`/loading?${query}`);
+    setError(null);
+
+    // Map form selections to engine expectations
+    const maxPages = depth === "quick" ? 1 : depth === "standard" ? 25 : 200;
+    // Engine lighthouse strategy: 'auto' encompasses both 'desktop' and 'both'.
+    // NOTE: per-device Lighthouse selection needs backend confirmation if they differ.
+    const lighthouseStrategy = (device === "desktop" || device === "both") ? "auto" : "none";
+
+    try {
+      const result = await startAudit({
+        startUrl: url,
+        maxPages,
+        lighthouseStrategy,
+        crawlSpeed: speed, // Passed through for forward-compatibility
+      });
+
+      router.push(`/loading?auditId=${result.auditId}&url=${encodeURIComponent(url)}`);
+    } catch (err: unknown) {
+      setIsSubmitting(false);
+      setError(err instanceof Error ? err.message : "Failed to start audit. Please check the URL and try again.");
+    }
   };
 
   return (
-    <form className={`${styles.card} light-theme`} onSubmit={handleStartAudit}>
+    <form className={styles.formContainer} onSubmit={handleStartAudit}>
       <Input
-        type="url"
-        size="lg"
+        label="Website URL"
         placeholder="https://example.com"
         value={url}
         onChange={(e) => setUrl(e.target.value)}
-        autoFocus
+        disabled={isSubmitting}
         required
-        aria-label="Website URL to audit"
       />
-
-      <div className={styles.formGroup}>
-        <span className={styles.groupLabel} id="device-label">Device mode</span>
+      {error && <div role="alert">{error}</div>}
+      <fieldset>
+        <legend>Device</legend>
         <SegmentedControl
-          options={[
-            { label: 'Desktop', value: 'desktop' },
-            { label: 'Mobile', value: 'mobile' },
-            { label: 'Both', value: 'both' }
-          ]}
+          ariaLabel="Device"
+          options={[{ label: "Desktop", value: "desktop" }, { label: "Mobile", value: "mobile" }, { label: "Both", value: "both" }]}
           value={device}
           onChange={setDevice}
-          ariaLabel="Select device mode"
         />
-      </div>
-
-      <div className={styles.formGroup}>
-        <span className={styles.groupLabel}>Audit depth</span>
-        <Select
-          options={[
-            { label: 'Quick scan (homepage only)', value: 'quick' },
-            { label: 'Standard (up to 25 pages)', value: 'standard' },
-            { label: 'Deep (up to 200 pages)', value: 'deep' }
-          ]}
+      </fieldset>
+      <fieldset>
+        <legend>Crawl Depth</legend>
+        <SegmentedControl
+          ariaLabel="Crawl depth"
+          options={[{ label: "Quick (1 page)", value: "quick" }, { label: "Standard (25 pages)", value: "standard" }, { label: "Deep (200 pages)", value: "deep" }]}
           value={depth}
           onChange={setDepth}
         />
-      </div>
-
-      <div className={styles.formGroup}>
-        <span className={styles.groupLabel}>Crawl speed</span>
-        <Select
-          options={[
-            { label: 'Careful (Low impact)', value: 'careful' },
-            { label: 'Standard (Recommended)', value: 'standard' },
-            { label: 'Fast (High impact)', value: 'fast' }
-          ]}
+      </fieldset>
+      <fieldset>
+        <legend>Speed</legend>
+        <SegmentedControl
+          ariaLabel="Speed"
+          options={[{ label: "Normal", value: "normal" }, { label: "Fast", value: "fast" }]}
           value={speed}
           onChange={setSpeed}
         />
-        <span className={styles.note}>
-          Faster crawls finish sooner but may put higher load on the target server.
-        </span>
-      </div>
-
-      <div className={styles.submitWrapper}>
-        <Button type="submit" size="lg" variant="primary" isLoading={isSubmitting}>
-          Start audit
-        </Button>
-      </div>
+      </fieldset>
+      <Button type="submit" disabled={isSubmitting || !url}>
+        {isSubmitting ? "Starting Audit..." : "Run Audit"}
+      </Button>
     </form>
   );
 }
 
 export default function AuditPage() {
   return (
-    <div className={styles.pageWrapper}>
-      <header className={styles.minimalHeader}>
-        <Link href="/" className={styles.logoArea}>
-          <LogoMark />
-          <span className={styles.wordmark}>SEOwise</span>
-        </Link>
-      </header>
-
+    <div className={styles.page}>
+      <Header />
       <main className={styles.main}>
-        {/* Suspense boundary required when using useSearchParams in Next.js App Router */}
-        <Suspense fallback={<div className={styles.card} style={{ height: '400px' }} />}>
-          <AuditForm />
-        </Suspense>
-
-        <div className={styles.tipsContainer}>
-          <h2 className={styles.tipsTitle}>Pre-audit tips</h2>
-          <ul className={styles.tipsList}>
-            <li className={styles.tipItem}>Make sure your site is publicly reachable — we can&apos;t audit password-protected or local pages.</li>
-            <li className={styles.tipItem}>Ensure your robots.txt allows our engine to crawl your specified scope.</li>
-            <li className={styles.tipItem}>Include https:// in your URL for accurate protocol evaluation.</li>
-          </ul>
+        <div className={styles.content}>
+          <h1 className="display-lg">New Audit</h1>
+          <Suspense fallback={<div>Loading form...</div>}>
+            <AuditForm />
+          </Suspense>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
