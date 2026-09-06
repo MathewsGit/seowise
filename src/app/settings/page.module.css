@@ -1,0 +1,103 @@
+.pageWrapper {
+  min-height: 100vh;
+  background-color: var(--paper-050);
+  padding-bottom: var(--space-8);
+}
+
+.header {
+  background-color: var(--paper-100);
+  border-bottom: 1px solid var(--line-200);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.backLink {
+  color: var(--paper-text-lo);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+.backLink:hover {
+  color: var(--signal-amber);
+}
+
+.pageTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--paper-text-hi);
+  margin: 0;
+}
+
+.main {
+  max-width: 680px;
+  margin: var(--space-8) auto 0;
+  padding: 0 var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.card {
+  background-color: var(--paper-100);
+  border: 1px solid var(--line-200);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line-200);
+  padding-bottom: var(--space-3);
+}
+
+.cardTitle {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--paper-text-hi);
+  margin: 0;
+}
+
+.savedToast {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 12px;
+  color: var(--signal-teal);
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.savedToast.visible {
+  opacity: 1;
+}
+
+.settingRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+@media (min-width: 768px) {
+  .settingRow {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.settingLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--paper-text-hi);
+}
+
+.settingDesc {
+  font-size: 13px;
+  color: var(--paper-text-lo);
+  max-width: 300px;
+}

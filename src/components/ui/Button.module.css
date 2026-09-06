@@ -1,0 +1,71 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-plex-sans), sans-serif;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-micro) var(--ease-standard),
+              transform var(--duration-micro) var(--ease-standard),
+              box-shadow var(--duration-micro) var(--ease-standard);
+  cursor: pointer;
+  position: relative;
+  text-decoration: none;
+  border: none;
+}
+
+/* Enforce 44px minimum hit target for coarse pointers (touch devices) */
+@media (pointer: coarse) {
+  .button {
+    min-height: 44px !important;
+  }
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.98);
+  box-shadow: none;
+}
+
+.button:disabled {
+  opacity: 0.40;
+  cursor: not-allowed;
+}
+
+/* Sizes */
+.sm { height: 32px; padding: 0 var(--space-4); font-size: 13px; line-height: 20px; }
+.md { height: 40px; padding: 0 var(--space-5); font-size: 15px; line-height: 24px; }
+.lg { height: 48px; padding: 0 var(--space-6); font-size: 17px; line-height: 26px; }
+
+/* Variants */
+.primary { background-color: var(--signal-amber); color: var(--ink-950); }
+.primary:hover:not(:disabled) { background-color: color-mix(in srgb, var(--signal-amber) 85%, black); }
+
+.secondary { background-color: transparent; border: 1.5px solid var(--line-800); color: var(--ink-text-hi); }
+.secondary:hover:not(:disabled) { background-color: var(--ink-800); }
+
+.tertiary { background-color: transparent; color: var(--ink-text-hi); padding: 0; }
+.tertiary:hover:not(:disabled) { text-decoration: underline; }
+
+.destructive { background-color: var(--signal-coral); color: var(--ink-950); }
+.destructive:hover:not(:disabled) { background-color: color-mix(in srgb, var(--signal-coral) 85%, black); }
+
+/* Loading State Utilities */
+.contentHidden {
+  opacity: 0; /* Hides text but retains element width */
+}
+.spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(11, 15, 23, 0.2);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}

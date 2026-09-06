@@ -1,0 +1,140 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: var(--ink-950);
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-5);
+  transition: height 200ms ease, border-bottom 200ms ease;
+  border-bottom: 1px solid transparent;
+}
+
+.header.scrolled {
+  height: 56px;
+  border-bottom: 1px solid var(--line-800);
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.logoArea {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-decoration: none;
+  color: var(--ink-text-hi);
+}
+
+.logoMark {
+  width: 24px;
+  height: 24px;
+  color: var(--signal-amber);
+}
+
+.wordmark {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+.nav {
+  display: none; /* Hidden on mobile */
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.navLink {
+  color: var(--ink-text-lo);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+  transition: color var(--duration-micro) var(--ease-standard);
+}
+
+.navLink:hover {
+  color: var(--ink-text-hi);
+}
+
+.right {
+  display: none; /* Hidden on mobile */
+}
+
+/* Mobile Nav Styles */
+.mobileMenuBtn {
+  display: flex;
+  background: transparent;
+  border: none;
+  color: var(--ink-text-hi);
+  cursor: pointer;
+  padding: var(--space-2);
+}
+
+.drawerOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(11, 15, 23, 0.6);
+  z-index: 100;
+  opacity: 0;
+  animation: fadeIn 160ms ease forwards;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 280px;
+  background-color: var(--ink-950); /* Always dark shell */
+  border-left: 1px solid var(--line-800);
+  z-index: 101;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  transform: translateX(100%);
+  animation: slideInRight 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.drawerHeader {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawerNav {
+  display: flex;
+  flex-direction: column;
+}
+
+.drawerLink {
+  color: var(--ink-text-hi);
+  text-decoration: none;
+  font-size: 17px;
+  font-weight: 500;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line-800);
+}
+
+@keyframes slideInRight {
+  to { transform: translateX(0); }
+}
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+@media (min-width: 768px) {
+  .nav, .right {
+    display: flex;
+  }
+  .mobileMenuBtn {
+    display: none;
+  }
+}

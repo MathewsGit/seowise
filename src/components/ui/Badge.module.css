@@ -1,0 +1,39 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px; /* Pill shape */
+  font-family: var(--font-plex-sans), sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Severity Variants using color-mix for exact 15% opacity */
+.pass {
+  background-color: color-mix(in srgb, var(--signal-teal) 15%, transparent);
+  color: var(--signal-teal);
+}
+
+.warning {
+  background-color: color-mix(in srgb, var(--signal-violet) 15%, transparent);
+  color: var(--signal-violet);
+}
+
+.fail {
+  background-color: color-mix(in srgb, var(--signal-coral) 15%, transparent);
+  color: var(--signal-coral);
+}
+
+.notice {
+  background-color: color-mix(in srgb, var(--signal-blue) 15%, transparent);
+  color: var(--signal-blue);
+}

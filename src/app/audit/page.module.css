@@ -1,0 +1,126 @@
+.pageWrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--ink-950);
+}
+
+.minimalHeader {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--line-800);
+}
+
+.logoArea {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-decoration: none;
+  color: var(--ink-text-hi);
+}
+
+.logoMark {
+  width: 24px;
+  height: 24px;
+  color: var(--signal-amber);
+}
+
+.wordmark {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-5);
+}
+
+.card {
+  width: 100%;
+  max-width: 540px;
+  background-color: var(--paper-050); /* Light surface */
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.groupLabel {
+  font-family: var(--font-plex-sans), sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--paper-text-hi);
+}
+
+.note {
+  font-size: 13px;
+  color: var(--paper-text-lo);
+  margin-top: -4px;
+}
+
+.submitWrapper {
+  margin-top: var(--space-2);
+}
+
+/* Submit button is full width */
+.submitWrapper > button {
+  width: 100%;
+}
+
+.tipsContainer {
+  width: 100%;
+  max-width: 540px;
+  margin-top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.tipsTitle {
+  font-family: var(--font-plex-sans), sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink-text-hi);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.tipsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tipItem {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--ink-text-lo);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.tipItem::before {
+  content: '•';
+  color: var(--signal-amber);
+}

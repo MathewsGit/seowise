@@ -1,0 +1,109 @@
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background-color: transparent;
+  border-bottom: 1px solid var(--line-800);
+  cursor: pointer;
+  transition: background-color var(--duration-micro) var(--ease-standard);
+  position: relative;
+  text-align: left;
+  width: 100%;
+}
+
+:global(.light-theme) .card {
+  border-bottom-color: var(--line-200);
+}
+
+/* 4px solid severity bar on the left edge */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  background-color: var(--severity-color, transparent);
+}
+
+.card:hover {
+  background-color: var(--ink-800);
+}
+
+:global(.light-theme) .card:hover {
+  background-color: var(--paper-100);
+}
+
+.iconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: var(--severity-color);
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0; /* Enables text truncation inside flex child */
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.title {
+  font-family: var(--font-plex-sans), sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-text-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:global(.light-theme) .title {
+  color: var(--paper-text-hi);
+}
+
+.urlCount {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 13px;
+  color: var(--ink-text-lo);
+  flex-shrink: 0;
+}
+
+:global(.light-theme) .urlCount {
+  color: var(--paper-text-lo);
+}
+
+.summary {
+  font-family: var(--font-plex-sans), sans-serif;
+  font-size: 13px;
+  color: var(--ink-text-lo);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:global(.light-theme) .summary {
+  color: var(--paper-text-lo);
+}
+
+.chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--ink-text-lo);
+  flex-shrink: 0;
+}
+
+:global(.light-theme) .chevron {
+  color: var(--paper-text-lo);
+}

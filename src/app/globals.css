@@ -1,0 +1,148 @@
+/* src/app/globals.css */
+:root {
+  /* Base Colors - Dark Shell */
+  --ink-950: #0B0F17;
+  --ink-900: #111826;
+  --ink-800: #1A2436;
+  --ink-text-hi: #EDEEF0;
+  --ink-text-lo: #9AA5B5;
+  --line-800: #2A3547;
+
+  /* Base Colors - Light Shell */
+  --paper-050: #F4F3EF;
+  --paper-100: #EAE8E0;
+  --paper-text-hi: #161A1F;
+  --paper-text-lo: #5B6270;
+  --line-200: #D8D5CB;
+
+  /* Signal Accent Colors */
+  --signal-amber: #E8A33D;
+  --signal-teal: #3FB6A8;
+  --signal-coral: #E15A4C;
+  --signal-violet: #8577D6;
+  --signal-blue: #4C86E1;
+
+  /* Spacing Scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 128px;
+
+  /* Borders & Shadows */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --shadow-rest: 0 1px 2px rgba(11, 15, 23, 0.06), 0 1px 1px rgba(11, 15, 23, 0.04);
+  --shadow-raised: 0 8px 24px rgba(11, 15, 23, 0.12);
+
+  /* Animation Easing & Durations */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-micro: 140ms;
+  --duration-panel: 240ms;
+  --duration-entrance: 900ms;
+}
+
+/* Global Reset & Base Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--ink-950);
+  color: var(--ink-text-hi);
+  font-family: var(--font-plex-sans), sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Interaction States & Accessibility */
+*:focus-visible {
+  outline: 2px solid var(--signal-amber);
+  outline-offset: 2px;
+}
+
+/* Typography Classes */
+.display-xl {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 56px;
+  line-height: 60px;
+  font-weight: 600;
+}
+
+.display-lg {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 40px;
+  line-height: 46px;
+  font-weight: 600;
+}
+
+.heading-lg {
+  font-family: var(--font-plex-sans), sans-serif;
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 600;
+}
+
+.heading-md {
+  font-family: var(--font-plex-sans), sans-serif;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+}
+
+.body-lg {
+  font-size: 17px;
+  line-height: 26px;
+  max-width: 72ch;
+}
+
+.body-md {
+  font-size: 15px;
+  line-height: 24px;
+  max-width: 72ch;
+}
+
+.body-sm {
+  font-size: 13px;
+  line-height: 20px;
+  max-width: 72ch;
+}
+
+.mono-lg {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 32px;
+  line-height: 36px;
+}
+
+.mono-md {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.mono-sm {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* Respect Reduced Motion Globally */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

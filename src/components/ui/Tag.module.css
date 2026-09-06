@@ -1,0 +1,59 @@
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ink-text-hi);
+  background: transparent;
+  border: 1px solid var(--line-800);
+  cursor: pointer;
+  transition: background-color var(--duration-micro) var(--ease-standard),
+              border-color var(--duration-micro) var(--ease-standard);
+  user-select: none;
+}
+
+/* Ensure touch targets on mobile */
+@media (pointer: coarse) {
+  .tag {
+    padding: 8px 16px;
+  }
+}
+
+.tag:hover:not(:disabled) {
+  background-color: var(--ink-800);
+}
+
+.tag:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.tag:disabled {
+  opacity: 0.40;
+  cursor: not-allowed;
+}
+
+/* Used when the tag is currently active/selected */
+.active {
+  background-color: var(--ink-800);
+  border-color: var(--signal-amber);
+  color: var(--signal-amber);
+}
+
+/* Adapting to light themes */
+:global(.light-theme) .tag {
+  color: var(--paper-text-hi);
+  border-color: var(--line-200);
+}
+
+:global(.light-theme) .tag:hover:not(:disabled) {
+  background-color: var(--paper-100);
+}
+
+:global(.light-theme) .tag.active {
+  background-color: var(--paper-100);
+  border-color: var(--signal-amber);
+  color: var(--signal-amber);
+}

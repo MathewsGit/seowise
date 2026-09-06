@@ -1,0 +1,38 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+  border: 1px solid var(--line-800);
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  transition: transform var(--duration-micro) var(--ease-standard),
+              box-shadow var(--duration-micro) var(--ease-standard);
+}
+
+:global(.light-theme) .card {
+  border-color: var(--line-200);
+}
+
+/* 1px lift + shadow on hover ONLY */
+.card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-rest);
+}
+
+.deltaContainer {
+  margin-top: var(--space-3);
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 13px;
+  line-height: 20px;
+  min-height: 20px; /* Prevents layout shift if delta is missing */
+}
+
+.deltaPositive {
+  color: var(--signal-teal);
+}
+
+.deltaNegative {
+  color: var(--signal-coral);
+}

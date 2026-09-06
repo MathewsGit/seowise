@@ -1,0 +1,102 @@
+.pageWrapper {
+  min-height: 100vh;
+  background-color: var(--paper-050);
+}
+
+.header {
+  background-color: var(--paper-100);
+  border-bottom: 1px solid var(--line-200);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.backLink {
+  color: var(--paper-text-lo);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+.backLink:hover {
+  color: var(--signal-amber);
+}
+
+.logoArea {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--paper-text-hi);
+  text-decoration: none;
+}
+
+.wordmark {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-5) var(--space-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.pageTitle {
+  font-size: 40px;
+  line-height: 46px;
+  font-weight: 600;
+  color: var(--paper-text-hi);
+  margin: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sectionTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--paper-text-hi);
+  margin: 0;
+  border-bottom: 1px solid var(--line-200);
+  padding-bottom: var(--space-2);
+}
+
+/* Editorial Body Text */
+.bodyText {
+  font-size: 17px;
+  line-height: 26px;
+  color: var(--paper-text-lo);
+  margin: 0;
+}
+
+.bodyText strong {
+  color: var(--paper-text-hi);
+  font-weight: 600;
+}
+
+.link {
+  color: var(--signal-amber);
+  text-decoration: none;
+}
+.link:hover {
+  text-decoration: underline;
+}
+
+.codeBlock {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 14px;
+  background-color: var(--paper-100);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-200);
+}

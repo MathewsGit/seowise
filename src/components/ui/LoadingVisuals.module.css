@@ -1,0 +1,153 @@
+/* Progress Bar */
+.progressBarContainer {
+  width: 100%;
+  height: 4px;
+  background-color: var(--ink-800);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progressBarFill {
+  height: 100%;
+  background-color: var(--signal-amber);
+  transition: width 200ms ease;
+}
+
+.progressBarIndeterminate {
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--signal-amber) 0,
+    var(--signal-amber) 10px,
+    color-mix(in srgb, var(--signal-amber) 80%, black) 10px,
+    color-mix(in srgb, var(--signal-amber) 80%, black) 20px
+  );
+  background-size: 28px 28px;
+  animation: stripeScroll 1s linear infinite;
+}
+
+@keyframes stripeScroll {
+  0% { background-position: 0 0; }
+  100% { background-position: 28px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressBarIndeterminate {
+    animation: none;
+    background: var(--signal-amber);
+  }
+}
+
+/* Animated Pipeline */
+.pipelineContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.nodeWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  z-index: 2;
+  flex: 1;
+}
+
+.nodeCircle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--line-800);
+  background-color: var(--ink-950);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 400ms var(--ease-entrance);
+}
+
+.nodeCircle.active {
+  border-color: var(--signal-amber);
+  background-color: var(--signal-amber);
+}
+
+.nodeCircle.completed {
+  border-color: var(--signal-teal);
+  background-color: var(--signal-teal);
+}
+
+.checkIcon {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-950);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 200ms var(--ease-entrance);
+}
+
+.nodeCircle.completed .checkIcon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.nodeLabel {
+  font-family: var(--font-plex-sans), sans-serif;
+  font-size: 13px;
+  color: var(--ink-text-lo);
+  text-align: center;
+  transition: color 200ms ease;
+}
+
+.nodeLabel.active, .nodeLabel.completed {
+  color: var(--ink-text-hi);
+  font-weight: 500;
+}
+
+/* Connecting Lines */
+.lineSegment {
+  position: absolute;
+  top: 11px; /* Center of the 24px node */
+  height: 2px;
+  background-color: var(--line-800);
+  z-index: 1;
+}
+
+.lineSegmentFill {
+  height: 100%;
+  background-color: var(--signal-amber);
+  width: 0;
+  transition: width 400ms linear;
+}
+
+.lineSegmentFill.drawn {
+  width: 100%;
+}
+
+/* Reduced motion overrides for pipeline */
+@media (prefers-reduced-motion: reduce) {
+  .pipelineContainer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+  .nodeWrapper {
+    flex-direction: row;
+    flex: unset;
+    width: 100%;
+  }
+  .lineSegment {
+    display: none;
+  }
+  .nodeCircle {
+    transition: none;
+  }
+  .checkIcon {
+    transition: none;
+  }
+}

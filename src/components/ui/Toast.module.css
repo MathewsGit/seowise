@@ -1,0 +1,89 @@
+.toastWrapper {
+  position: fixed;
+  bottom: var(--space-5);
+  right: var(--space-5);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  pointer-events: none; /* Let clicks pass through the container */
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  width: 320px;
+  padding: var(--space-4);
+  background-color: var(--ink-900);
+  border: 1px solid var(--line-800);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+  pointer-events: auto; /* Re-enable clicks on the toast itself */
+  
+  /* Entrance animation */
+  animation: slideIn 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+:global(.light-theme) .toast {
+  background-color: var(--paper-100);
+  border-color: var(--line-200);
+}
+
+.toast.closing {
+  animation: fadeOut 160ms var(--ease-standard) forwards;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(100%) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.95); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast, .toast.closing {
+    animation-duration: 0.01ms !important;
+  }
+}
+
+.iconWrapper {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+/* Severity Colors */
+.success .iconWrapper { color: var(--signal-teal); }
+.warning .iconWrapper { color: var(--signal-violet); }
+.error .iconWrapper { color: var(--signal-coral); }
+
+.content {
+  flex: 1;
+  font-family: var(--font-plex-sans), sans-serif;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--ink-text-hi);
+  margin-top: -1px;
+}
+
+:global(.light-theme) .content { color: var(--paper-text-hi); }
+
+.closeButton {
+  background: transparent;
+  border: none;
+  color: var(--ink-text-lo);
+  cursor: pointer;
+  padding: 2px;
+  margin: -2px;
+  border-radius: var(--radius-sm);
+  transition: color var(--duration-micro) var(--ease-standard);
+}
+
+:global(.light-theme) .closeButton { color: var(--paper-text-lo); }
+
+.closeButton:hover { color: var(--ink-text-hi); }
+:global(.light-theme) .closeButton:hover { color: var(--paper-text-hi); }

@@ -1,0 +1,95 @@
+.container {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line-800);
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+}
+
+:global(.light-theme) .container {
+  border-color: var(--line-200);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.thead {
+  position: sticky;
+  top: 0;
+  background-color: var(--ink-950); /* Matches dark shell */
+  z-index: 10;
+}
+
+:global(.light-theme) .thead {
+  background-color: var(--paper-050); /* Matches light shell */
+}
+
+.th {
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-plex-sans), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-text-lo);
+  border-bottom: 1px solid var(--line-800);
+  white-space: nowrap;
+}
+
+:global(.light-theme) .th {
+  color: var(--paper-text-lo);
+  border-bottom-color: var(--line-200);
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sortable:hover {
+  color: var(--ink-text-hi);
+}
+:global(.light-theme) .sortable:hover {
+  color: var(--paper-text-hi);
+}
+
+.sortIcon {
+  display: inline-block;
+  margin-left: 6px;
+  width: 10px;
+  height: 10px;
+}
+
+.tr {
+  transition: background-color var(--duration-micro) var(--ease-standard);
+}
+
+.tr:hover .td {
+  /* 4% amber tint across full row */
+  background-color: color-mix(in srgb, var(--signal-amber) 4%, transparent);
+}
+
+.td {
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-plex-sans), sans-serif;
+  font-size: 14px;
+  color: var(--ink-text-hi);
+  border-bottom: 1px solid var(--line-800);
+  vertical-align: top;
+}
+
+:global(.light-theme) .td {
+  color: var(--paper-text-hi);
+  border-bottom-color: var(--line-200);
+}
+
+/* Remove bottom border from last row */
+.tr:last-child .td {
+  border-bottom: none;
+}
+
+.monospace {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 13px;
+}

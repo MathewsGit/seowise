@@ -1,0 +1,57 @@
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--ink-900);
+  border: 1px solid var(--line-800);
+  border-radius: var(--radius-sm);
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+:global(.light-theme) .card {
+  background-color: var(--paper-050);
+  border-color: var(--line-200);
+}
+
+/* 4px solid coral bar on the left edge */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  background-color: var(--signal-coral);
+}
+
+.statusCode {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--signal-coral);
+  background-color: color-mix(in srgb, var(--signal-coral) 15%, transparent);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.url {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 14px;
+  color: var(--ink-text-hi);
+  flex: 1;
+  white-space: nowrap;
+}
+
+:global(.light-theme) .url {
+  color: var(--paper-text-hi);
+}
+
+.retryButton {
+  /* Inherits from Button tertiary variant but strictly right-aligned here */
+  margin-left: auto;
+  flex-shrink: 0;
+}

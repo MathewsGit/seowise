@@ -1,0 +1,119 @@
+.pageWrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--ink-950);
+  padding: var(--space-5);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Background scanline texture per spec */
+.pageWrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 2px,
+    rgba(255, 255, 255, 0.04) 2px,
+    rgba(255, 255, 255, 0.04) 4px
+  );
+  z-index: 1;
+}
+
+.content {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.urlTarget {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 15px;
+  color: var(--ink-text-hi);
+  background-color: var(--ink-900);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-800);
+  text-align: center;
+  word-break: break-all;
+}
+
+.progressSection {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 0 var(--space-2);
+}
+
+.percentage {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--signal-amber);
+}
+
+.estimate {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 13px;
+  color: var(--ink-text-lo);
+  animation: fadeIn 400ms var(--ease-entrance) forwards;
+}
+
+.statusContainer {
+  height: 24px; /* Fixed height prevents layout shift during crossfades */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: var(--space-2);
+}
+
+.statusMessage {
+  font-family: var(--font-plex-sans), sans-serif;
+  font-size: 14px;
+  color: var(--ink-text-lo);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  
+  /* 200ms crossfade per spec */
+  animation: statusCrossfade 200ms var(--ease-standard) forwards;
+}
+
+@keyframes statusCrossfade {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.cancelWrapper {
+  margin-top: var(--space-6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .statusMessage, .estimate {
+    animation: none;
+  }
+}

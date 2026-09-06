@@ -1,0 +1,73 @@
+.container {
+  position: relative;
+  display: flex;
+  width: 100%;
+  border-bottom: 1px solid var(--line-800);
+  overflow-x: auto; /* Allow scrolling on smaller screens */
+  scrollbar-width: none; /* Firefox */
+}
+
+.container::-webkit-scrollbar {
+  display: none; /* Safari/Chrome */
+}
+
+:global(.light-theme) .container {
+  border-bottom-color: var(--line-200);
+}
+
+.tabList {
+  display: flex;
+  gap: var(--space-6);
+  position: relative;
+  min-width: min-content;
+}
+
+.tab {
+  background: transparent;
+  border: none;
+  padding: var(--space-3) 0;
+  font-family: var(--font-plex-sans), sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-text-lo);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--duration-micro) var(--ease-standard);
+}
+
+:global(.light-theme) .tab {
+  color: var(--paper-text-lo);
+}
+
+.tab:hover {
+  color: var(--ink-text-hi);
+}
+
+:global(.light-theme) .tab:hover {
+  color: var(--paper-text-hi);
+}
+
+.tab.active {
+  color: var(--ink-text-hi);
+}
+
+:global(.light-theme) .tab.active {
+  color: var(--paper-text-hi);
+}
+
+/* The Sliding Underline */
+.indicator {
+  position: absolute;
+  bottom: -1px; /* Align with the container border */
+  height: 2px;
+  background-color: var(--signal-amber);
+  transition: left 200ms ease, width 200ms ease;
+  pointer-events: none;
+}
+
+/* Disable transition on reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .indicator {
+    transition: none !important;
+  }
+}

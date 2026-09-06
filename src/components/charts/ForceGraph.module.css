@@ -1,0 +1,111 @@
+.container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: transparent;
+  border: 1px solid var(--line-800);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: grab;
+}
+
+:global(.light-theme) .container {
+  border-color: var(--line-200);
+}
+
+.container:active {
+  cursor: grabbing;
+}
+
+.svg {
+  width: 100%;
+  height: 100%;
+}
+
+.link {
+  stroke: var(--line-800);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+:global(.light-theme) .link {
+  stroke: var(--line-200);
+}
+
+.node {
+  stroke: var(--ink-950);
+  stroke-width: 2px;
+  cursor: pointer;
+  /* Animate from center to final position on mount */
+  transition: cx 1.2s cubic-bezier(0.16, 1, 0.3, 1), 
+              cy 1.2s cubic-bezier(0.16, 1, 0.3, 1),
+              r 0.2s ease, filter 0.2s ease;
+}
+
+:global(.light-theme) .node {
+  stroke: var(--paper-050);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node {
+    transition: none !important;
+  }
+}
+
+.node:hover {
+  filter: brightness(1.2);
+}
+
+/* Tooltip Styles */
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  background-color: var(--ink-950);
+  border: 1px solid var(--line-800);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  box-shadow: var(--shadow-raised);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 240px;
+  z-index: 100;
+  transform: translate(-50%, calc(-100% - 12px)); /* Above cursor */
+  transition: opacity 120ms ease;
+}
+
+/* Tooltips remain dark ink surface universally per spec */
+
+.tooltipUrl {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 13px;
+  color: var(--ink-text-hi);
+  word-break: break-all;
+}
+
+.tooltipMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-plex-sans), sans-serif;
+  font-size: 13px;
+  color: var(--ink-text-lo);
+}
+
+.statusBadge {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-950);
+  font-weight: 500;
+}
+
+/* Status Colors */
+.status2xx { fill: var(--signal-teal); }
+.status3xx { fill: var(--signal-violet); }
+.status4xx, .status5xx { fill: var(--signal-coral); }
+
+.bg2xx { background-color: var(--signal-teal); }
+.bg3xx { background-color: var(--signal-violet); }
+.bg4xx, .bg5xx { background-color: var(--signal-coral); }
