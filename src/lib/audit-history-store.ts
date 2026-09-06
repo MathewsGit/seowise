@@ -1,13 +1,14 @@
 import { AuditHistoryEntry } from "@/types/audit";
 
-const HISTORY_KEY = "seowise:audit-history";
+const STORE_KEY = "seowise:audit-history";
 const MAX_ENTRIES = 20;
 
 export function getHistoryEntries(): AuditHistoryEntry[] {
   if (typeof window === "undefined") return [];
   try {
-    const data = localStorage.getItem(HISTORY_KEY);
-    return data ? JSON.parse(data) : [];
+    const stored = localStorage.getItem(STORE_KEY);
+    if (!stored) return [];
+    return JSON.parse(stored);
   } catch (e) {
     console.error("Failed to parse audit history", e);
     return [];
@@ -17,16 +18,17 @@ export function getHistoryEntries(): AuditHistoryEntry[] {
 export function pushHistoryEntry(entry: AuditHistoryEntry): void {
   if (typeof window === "undefined") return;
   try {
-    const history = getHistoryEntries();
-    const existingIndex = history.findIndex((e) => e.id === entry.id);
-    
-    if (existingIndex >= 0) {
-      history[existingIndex] = entry;
+    const entries = getHistoryEntries();
+    const existingIndex = entries.findIndex(e => e.id === entry.id);
+    if (existingIndex > -1) {
+      entries[existingIndex] = entry;
     } else {
-      history.unshift(entry);
+      entries.unshift(entry);
     }
-    
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_ENTRIES)));
+    if (entries.length > MAX_ENTRIES) {
+      entries.length = MAX_ENTRIES;
+    }
+    localStorage.setItem(STORE_KEY, JSON.stringify(entries));
   } catch (e) {
     console.error("Failed to save audit history", e);
   }
@@ -35,10 +37,10 @@ export function pushHistoryEntry(entry: AuditHistoryEntry): void {
 export function removeHistoryEntry(id: string): void {
   if (typeof window === "undefined") return;
   try {
-    const history = getHistoryEntries();
-    const updated = history.filter((e) => e.id !== id);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+    const entries = getHistoryEntries();
+    const filtered = entries.filter(e => e.id !== id);
+    localStorage.setItem(STORE_KEY, JSON.stringify(filtered));
   } catch (e) {
-    console.error("Failed to remove audit history entry", e);
+    console.error("Failed to remove audit history", e);
   }
 }

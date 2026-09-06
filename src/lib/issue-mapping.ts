@@ -1,20 +1,18 @@
 import { AuditIssue } from "@/types/audit";
 
-export function mapEngineIssueToUi(issue: AuditIssue | any) {
-  const typeStr = (issue.type || issue.issueType || "general");
+export function mapEngineIssueToUi(issue: AuditIssue): { severity: "critical" | "warning" | "notice"; icon: string; categoryTag: string } {
+  const iconMap = {
+    critical: "🚨",
+    warning: "⚠️",
+    notice: "ℹ️",
+  };
   
-  // The backend uses "critical", "warning", "info".
-  // Our UI component explicitly expects "fail", "warning", "notice", "pass".
-  let engineSeverity = issue.severity || "info";
-  
-  let uiSeverity = "notice";
-  if (engineSeverity === "critical") uiSeverity = "fail";
-  else if (engineSeverity === "warning") uiSeverity = "warning";
-  else if (engineSeverity === "info") uiSeverity = "notice";
-  
+  // Format category tag from type, e.g. "missing_h1" -> "MISSING H1"
+  const categoryTag = issue.type.replace(/_/g, " ").toUpperCase();
+
   return {
-    severity: uiSeverity, 
-    categoryTag: typeStr.split('_').join(' ').toUpperCase(),
-    icon: uiSeverity === "fail" ? "⚠️" : uiSeverity === "warning" ? "⚡" : "ℹ️"
+    severity: issue.severity,
+    icon: iconMap[issue.severity] || "ℹ️",
+    categoryTag,
   };
 }

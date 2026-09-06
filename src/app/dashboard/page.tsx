@@ -1,183 +1,144 @@
 "use client";
+
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { getAuditResults } from "@/lib/audit-api";
 import { mapEngineIssueToUi } from "@/lib/issue-mapping";
 import { AuditResults } from "@/types/audit";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 import { ScoreGauge } from "@/components/ui/ScoreGauge";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { IssueCard } from "@/components/ui/IssueCard";
 import { ErrorCard } from "@/components/ui/ErrorCard";
 import { Button } from "@/components/ui/Button";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
 import styles from "./page.module.css";
-import { BarChart } from "@/components/charts/BarChart";
-import { CoreWebVitalsGauge } from "@/components/charts/CoreWebVitalsGauge";
 
+// Documenting scoring formula: 100 minus penalty points per issue severity, floored at 0.
 function computeCategoryScores(results: AuditResults) {
-  const deduct = (issues: any[], typeMatch: string[]) => {
-    let penalty = 0;
-    issues.forEach(i => {
-      // Safely grab the type string, falling back to an empty string if it's missing
-      const issueTypeStr = (i.type || i.issueType || "").toLowerCase();
-      
-      if (typeMatch.some(t => issueTypeStr.includes(t))) {
-        penalty += i.severity === "critical" ? 20 : i.severity === "warning" ? 10 : 2;
-      }
-    });
-    return penalty;
-  };
-
-  const techPenalty = deduct(results.issues, ["robots", "canonical", "sitemap", "status", "server"]);
-  const onPagePenalty = deduct(results.issues, ["title", "meta", "heading", "image", "content"]);
+  const scores = { technical: 100, onPage: 100, performance: null as number | null, accessibility: null as number | null, mobile: null as number | null, overall: 100 };
   
-  const techScore = Math.max(0, 100 - techPenalty);
-  const onPageScore = Math.max(0, 100 - onPagePenalty);
-  const accessibilityScore = results.lighthouse[0]?.accessibilityScore ? Math.round(results.lighthouse[0].accessibilityScore * 100) : null;
-  const performanceScore = results.lighthouse[0]?.performanceScore ? Math.round(results.lighthouse[0].performanceScore * 100) : null;
-  const mobileScore = results.lighthouse.find(l => l.strategy === "mobile")?.seoScore 
-    ? Math.round(results.lighthouse.find(l => l.strategy === "mobile")!.seoScore! * 100) : null;
-
-  const validScores = [techScore, onPageScore, accessibilityScore, performanceScore].filter(s => s !== null) as number[];
-  const overallScore = validScores.length ? Math.round(validScores.reduce((a,b)=>a+b,0)/validScores.length) : null;
-
-  return { Technical: techScore, OnPage: onPageScore, Performance: performanceScore, Accessibility: accessibilityScore, Mobile: mobileScore, Overall: overallScore };
+  let techPenalty = 0;
+  let onPagePenalty = 0;
+  
+  results.issues.forEach(issue => {
+    const penalty = issue.severity === "critical" ? 20 : issue.severity === "warning" ? 10 : 2;
+    if (issue.type.match(/technical|robots|sitemap|canonical|server/)) {
+      techPenalty += penalty;
+    } else {
+      onPagePenalty += penalty;
+    }
+  });
+  
+  scores.technical = Math.max(0, 100 - techPenalty);
+  scores.onPage = Math.max(0, 100 - onPagePenalty);
+  
+  if (results.lighthouse.length > 0) {
+    const lh = results.lighthouse[0];
+    scores.performance = lh.performanceScore ? Math.round(lh.performanceScore * 100) : null;
+    scores.accessibility = lh.accessibilityScore ? Math.round(lh.accessibilityScore * 100) : null;
+    
+    const mobileLh = results.lighthouse.find(l => l.strategy === "mobile");
+    scores.mobile = mobileLh?.seoScore ? Math.round(mobileLh.seoScore * 100) : null;
+  }
+  
+  const parts = [scores.technical, scores.onPage, scores.performance, scores.accessibility].filter(x => x !== null) as number[];
+  scores.overall = parts.length > 0 ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : 0;
+  
+  return scores;
 }
 
-function DashboardContent() {
+function DashboardView() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const auditId = searchParams.get("auditId");
   
   const [results, setResults] = useState<AuditResults | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
+  
   const fetchResults = async () => {
-    if (!auditId) {
-      setError("No audit ID provided in URL.");
-      setIsLoading(false);
-      return;
-    }
-    
-    setIsLoading(true);
+    if (!auditId) return;
     setError(null);
     try {
-      const data = await getAuditResults(auditId);
-      setResults(data);
+      const res = await getAuditResults(auditId);
+      setResults(res);
     } catch (err: any) {
-      setError(err.message || "Failed to load audit results.");
-    } finally {
-      setIsLoading(false);
+      setError(err.message || "Failed to load dashboard.");
     }
   };
 
   useEffect(() => {
     fetchResults();
   }, [auditId]);
-
+  
   if (error) {
-    return (
-      <div className={styles.errorWrapper}>
-        {/* We map our general error into the existing crawl-error card format */}
-        <ErrorCard 
-          statusCode="Error" 
-          url={error || "Failed to load audit results"} 
-          onRetry={fetchResults} 
-        />
-      </div>
-    );
+    return <ErrorCard message={error} onRetry={fetchResults} />;
   }
-
+  
+  const domain = results ? new URL(results.audit.startUrl).hostname : "Loading...";
+  const timestamp = results ? new Date(results.audit.completedAt || results.audit.startedAt).toLocaleString() : "Loading...";
+  
+  const scores = results ? computeCategoryScores(results) : null;
+  
   const handleExport = () => {
     if (!results) return;
     const blob = new Blob([JSON.stringify(results, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `seowise-export-${results.audit.id}.json`;
+    a.download = `audit-${results.audit.id}.json`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    // TODO: PDF export
   };
 
-  const domain = results ? new URL(results.audit.startUrl).hostname : "Loading...";
-  const timestamp = results ? new Date(results.audit.completedAt ?? results.audit.startedAt).toLocaleString() : "Loading...";
-  const scores = results ? computeCategoryScores(results) : { Technical: null, OnPage: null, Performance: null, Accessibility: null, Mobile: null, Overall: null };
-  const mappedIssues = results ? results.issues.map((i, index) => ({ 
-    ...i, 
-    id: i.id || String(index), // Fallback to index if no ID exists
-    ui: mapEngineIssueToUi(i) 
-  })) : [];
   return (
-    <div className={styles.container}>
-      <div className={styles.dashboardHeader}>
+    <div className={styles.dashboard}>
+      <header className={styles.header}>
         <div>
           <h1 className="heading-lg">{domain}</h1>
           <p className="body-sm text-ink-800">Scanned on {timestamp}</p>
         </div>
-        <div className={styles.headerActions}>
-          <Button variant="secondary" onClick={handleExport} disabled={isLoading}>Export JSON</Button>
-        </div>
+        <Button onClick={handleExport} disabled={!results}>Export JSON</Button>
+      </header>
+      
+      <div className={styles.scoreGauges}>
+        <ScoreGauge score={scores?.overall ?? null} label="Overall" />
+        <ScoreGauge score={scores?.technical ?? null} label="Technical" />
+        <ScoreGauge score={scores?.onPage ?? null} label="On-Page" />
+        <ScoreGauge score={scores?.performance ?? null} label="Performance" />
       </div>
-
-      <div className={styles.gaugesGrid}>
-        <ScoreGauge score={scores.Overall} label="Overall" loading={isLoading} />
-        <ScoreGauge score={scores.Technical} label="Technical" loading={isLoading} />
-        <ScoreGauge score={scores.OnPage} label="On-Page" loading={isLoading} />
-        <ScoreGauge score={scores.Performance} label="Performance" loading={isLoading} />
+      
+      <div className={styles.metrics}>
+        <MetricCard label="Pages Crawled" score={results?.audit.pagesCrawled ?? null} />
+        <MetricCard label="Total Issues" score={results?.issues.length ?? null} />
       </div>
-
-      <div className={styles.metricsGrid}>
-        <MetricCard label="Pages Crawled" score={results?.audit.pagesCrawled ?? null} loading={isLoading} />
-        <MetricCard label="Issues Found" score={results?.issues.length ?? null} loading={isLoading} />
-        <MetricCard label="Avg Response Time (ms)" score={results && results.pages.length ? Math.round(results.pages.reduce((acc, p) => acc + p.responseTimeMs, 0) / results.pages.length) : null} loading={isLoading} />
-      </div>
-
-      <div className={styles.contentSections}>
-        <section className={styles.section}>
-          <h2 className="heading-md">Issues Discovered</h2>
-          <div className={styles.issuesList}>
-            {isLoading ? <div>Loading issues...</div> : 
-             mappedIssues.length === 0 ? <p>No issues found!</p> :
-             mappedIssues.map(issue => (
-               <IssueCard 
-                 key={issue.id} 
-                 title={issue.title} 
-                 severity={issue.ui.severity as any} 
-                 summary={issue.description || issue.howToFix || "No description provided."} 
-                 urlCount={issue.affectedUrls ? issue.affectedUrls.length : 1}
-                 onClick={() => router.push(`/issue?auditId=${auditId}&issueId=${issue.id}`)}
-               />
-             ))}
-          </div>
-        </section>
-
-        <section className={styles.section}>
-          <h2 className="heading-md">Page Details</h2>
-          {isLoading ? (
-            <div>Loading page details...</div>
-          ) : (
-            <DataTable 
-              columns={[
-                { key: "url", label: "URL", isMonospace: true },
-                { key: "statusCode", label: "Status" },
-                { key: "title", label: "Title" },
-                { key: "wordCount", label: "Word Count" },
-                { key: "indexable", label: "Indexable" }
-              ]}
-              data={results?.pages.map((p, i) => ({
-                id: p.id || String(i),
-                url: p.url,
-                statusCode: p.statusCode.toString(),
-                title: p.title || "-",
-                wordCount: p.wordCount.toString(),
-                indexable: p.isIndexable ? "Yes" : "No"
-              })) || []}
+      
+      <div className={styles.issues}>
+        <h2 className="heading-md">Detailed Issues</h2>
+        {results?.issues.map(issue => {
+          const mapped = mapEngineIssueToUi(issue);
+          return (
+            <IssueCard 
+              key={issue.id}
+              title={issue.title}
+              description={issue.description}
+              severity={mapped.severity}
+              tag={mapped.categoryTag}
+              href={`/issue?auditId=${results.audit.id}&issueId=${issue.id}`}
             />
-          )}
-        </section>
+          );
+        })}
+      </div>
+      
+      <div className={styles.tables}>
+        <h2 className="heading-md">Pages</h2>
+        <DataTable 
+          data={results?.pages || []} 
+          columns={["url", "statusCode", "title", "wordCount", "isIndexable"]}
+        />
       </div>
     </div>
   );
@@ -185,11 +146,11 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <div className={styles.page}>
+    <div className={styles.container}>
       <Header />
       <main className={styles.main}>
-        <Suspense fallback={<div className={styles.loadingMain}>Loading Dashboard...</div>}>
-          <DashboardContent />
+        <Suspense fallback={<div className={styles.loading}>Loading Data...</div>}>
+          <DashboardView />
         </Suspense>
       </main>
       <Footer />

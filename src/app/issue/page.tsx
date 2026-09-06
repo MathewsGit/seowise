@@ -6,110 +6,78 @@ import { getAuditResults } from "@/lib/audit-api";
 import { AuditIssue } from "@/types/audit";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { ErrorCard } from "@/components/ui/ErrorCard";
-import styles from "./page.module.css";
-import { mapEngineIssueToUi } from "@/lib/issue-mapping";
 import { Badge } from "@/components/ui/Badge";
+import styles from "./page.module.css";
 
-// Simple in-memory cache to prevent refetching if navigating straight from dashboard
-const issueCache: Record<string, AuditIssue[]> = {};
+const cache = new Map<string, AuditIssue[]>();
 
-function IssueContent() {
+function IssueView() {
   const searchParams = useSearchParams();
   const auditId = searchParams.get("auditId");
   const issueId = searchParams.get("issueId");
-
+  
   const [issue, setIssue] = useState<AuditIssue | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
+  
   useEffect(() => {
-    if (!auditId || !issueId) {
-      setError("Missing audit ID or issue ID.");
-      setIsLoading(false);
-      return;
-    }
-
-    const loadIssue = async () => {
-      setIsLoading(true);
-      setError(null);
+    if (!auditId || !issueId) return;
+    
+    const fetchIssue = async () => {
       try {
-        let issues = issueCache[auditId];
-        if (!issues) {
-          const results = await getAuditResults(auditId);
-          issues = results.issues;
-          issueCache[auditId] = issues;
+        if (cache.has(auditId)) {
+          const issues = cache.get(auditId)!;
+          setIssue(issues.find(i => i.id === issueId) || null);
+          return;
         }
-
-        const found = issues.find((i, index) => (i.id || String(index)) === issueId);
-        if (found) {
-          setIssue(found);
-        } else {
-          setError("Issue not found in this audit.");
-        }
-      } catch (err: any) {
-        setError(err.message || "Failed to load issue details.");
-      } finally {
-        setIsLoading(false);
+        const res = await getAuditResults(auditId);
+        cache.set(auditId, res.issues);
+        setIssue(res.issues.find(i => i.id === issueId) || null);
+      } catch (e: any) {
+        setError(e.message || "Failed to load issue.");
       }
     };
-
-    loadIssue();
+    fetchIssue();
   }, [auditId, issueId]);
 
-  if (error) {
-    return (
-      <div className={styles.content}>
-        <ErrorCard title="Error loading issue" message={error} onRetry={() => window.location.reload()} />
-      </div>
-    );
-  }
-
-  if (isLoading || !issue) {
-    return <div className={styles.content}>Loading issue details...</div>;
-  }
-
-  const ui = mapEngineIssueToUi(issue);
+  if (error) return <div>{error}</div>;
+  if (!issue) return <div>Loading...</div>;
 
   return (
-    <div className={styles.content}>
-      <div className={styles.issueHeader}>
-        <Badge variant={ui.severity}>{ui.severity.toUpperCase()}</Badge>
-        <Badge variant="neutral">{ui.categoryTag}</Badge>
+    <div className={styles.issueDetails}>
+      <div className={styles.badgeRow}>
+        <Badge variant={issue.severity}>{issue.severity.toUpperCase()}</Badge>
       </div>
-      <h1 className="heading-lg mt-4">{issue.title}</h1>
-      <p className="body-lg mt-2">{issue.description}</p>
-
+      <h1 className="heading-lg">{issue.title}</h1>
+      <p className="body-md">{issue.description}</p>
+      
       {issue.fixSteps && issue.fixSteps.length > 0 && (
-        <section className={styles.section}>
+        <div className={styles.fixSteps}>
           <h2 className="heading-md">How to fix</h2>
-          <ol className={styles.stepsList}>
-            {issue.fixSteps.map((step, idx) => (
-              <li key={idx} className="body-md">{step}</li>
-            ))}
-          </ol>
-        </section>
+          <ul className="body-sm">
+            {issue.fixSteps.map((step, i) => <li key={i}>{step}</li>)}
+          </ul>
+        </div>
       )}
-
-      <section className={styles.section}>
-        <h2 className="heading-md">Affected URLs ({issue.affectedUrls.length})</h2>
-        <ul className={styles.urlsList}>
-          {issue.affectedUrls.map((url, idx) => (
-            <li key={idx} className="mono-sm text-ink-800 break-all">{url}</li>
+      
+      <div className={styles.affectedUrls}>
+        <h2 className="heading-md">Affected URLs</h2>
+        <ul>
+          {issue.affectedUrls.map((url, i) => (
+            <li key={i} className="mono-sm text-ink-800">{url}</li>
           ))}
         </ul>
-      </section>
+      </div>
     </div>
   );
 }
 
 export default function IssuePage() {
   return (
-    <div className={styles.page}>
+    <div className={styles.container}>
       <Header />
       <main className={styles.main}>
-        <Suspense fallback={<div>Loading...</div>}>
-          <IssueContent />
+        <Suspense fallback={<div>Loading issue...</div>}>
+          <IssueView />
         </Suspense>
       </main>
       <Footer />

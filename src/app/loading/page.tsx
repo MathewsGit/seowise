@@ -6,91 +6,87 @@ import { getAuditStatus, getAuditProgress, deleteAudit } from "@/lib/audit-api";
 import { pushHistoryEntry } from "@/lib/audit-history-store";
 import { AnimatedPipeline, ProgressBar } from "@/components/ui/LoadingVisuals";
 import { WarningModal } from "@/components/ui/Modal";
-import { Button } from "@/components/ui/Button";
-import styles from "./page.module.css";
 import { Header } from "@/components/layout/Header";
+import styles from "./page.module.css";
 
-const DEFAULT_MESSAGES = [
-  "Discovering pages...",
+const GENERIC_MESSAGES = [
+  "Fetching robots.txt...",
   "Parsing HTML...",
-  "Checking technical SEO...",
-  "Analyzing on-page content...",
-  "Running Lighthouse metrics...",
-  "Compiling final report..."
+  "Analyzing technical SEO...",
+  "Evaluating on-page content...",
+  "Running Lighthouse tests...",
+  "Compiling report..."
 ];
 
-function deriveStageIndex(phase: string | null, progressPct: number): number {
+function mapPhaseToStage(phase: string | null, progress: number): number {
   if (phase) {
-    const lower = phase.toLowerCase();
-    if (lower.includes("fetch") || lower.includes("discover")) return 0;
-    if (lower.includes("pars")) return 1;
-    if (lower.includes("technical") || lower.includes("robots") || lower.includes("sitemap") || lower.includes("canonical")) return 2;
-    if (lower.includes("on-page") || lower.includes("metadata") || lower.includes("heading") || lower.includes("schema")) return 3;
-    if (lower.includes("performance") || lower.includes("lighthouse") || lower.includes("vitals")) return 4;
-    if (lower.includes("compil") || lower.includes("aggregat") || lower.includes("report")) return 5;
+    const p = phase.toLowerCase();
+    if (p.includes("fetch") || p.includes("discover")) return 0;
+    if (p.includes("pars")) return 1;
+    if (p.includes("technical") || p.includes("robots") || p.includes("sitemap") || p.includes("canonical")) return 2;
+    if (p.includes("on-page") || p.includes("metadata") || p.includes("heading") || p.includes("schema")) return 3;
+    if (p.includes("performance") || p.includes("lighthouse") || p.includes("vitals")) return 4;
+    if (p.includes("compil") || p.includes("aggregat") || p.includes("report")) return 5;
   }
-  // Fallback to proportional estimate
-  if (progressPct < 15) return 0;
-  if (progressPct < 30) return 1;
-  if (progressPct < 50) return 2;
-  if (progressPct < 70) return 3;
-  if (progressPct < 90) return 4;
+  
+  if (progress < 15) return 0;
+  if (progress < 30) return 1;
+  if (progress < 50) return 2;
+  if (progress < 70) return 3;
+  if (progress < 90) return 4;
   return 5;
 }
 
-function LoadingContent() {
+function LoadingState() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const auditId = searchParams.get("auditId");
-  const targetUrl = searchParams.get("url") || "the website";
-
+  const url = searchParams.get("url") || "";
+  
   const [progress, setProgress] = useState(0);
   const [stageIndex, setStageIndex] = useState(0);
-  const [statusMessage, setStatusMessage] = useState(DEFAULT_MESSAGES[0]);
-  const [justCrawled, setJustCrawled] = useState<string | null>(null);
-  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(GENERIC_MESSAGES[0]);
+  const [recentUrl, setRecentUrl] = useState<string | null>(null);
+  const [isCanceling, setIsCanceling] = useState(false);
   
   const pollFailures = useRef(0);
-  const isTerminal = useRef(false);
-
+  const active = useRef(true);
+  
   useEffect(() => {
-    if (!auditId || isTerminal.current) return;
-
-    let timeoutId: NodeJS.Timeout;
-
+    if (!auditId) return;
+    
     const poll = async () => {
+      if (!active.current) return;
       try {
         const status = await getAuditStatus(auditId);
-        pollFailures.current = 0; // Reset on success
-
-        let pct = Math.round((status.pagesCrawled / Math.max(status.pagesTotal, 1)) * 100);
-        if (status.status !== "completed") {
-          pct = Math.min(pct, 99); // Clamp to 99 until finished
-        }
+        pollFailures.current = 0;
         
-        setProgress(pct);
-        setStageIndex(deriveStageIndex(status.currentPhase, pct));
+        const pct = Math.round((status.pagesCrawled / Math.max(status.pagesTotal, 1)) * 100);
+        const clampedPct = status.status !== "completed" ? Math.min(pct, 99) : pct;
+        
+        setProgress(clampedPct);
+        
+        const stage = mapPhaseToStage(status.currentPhase, clampedPct);
+        setStageIndex(stage);
         
         if (status.currentPhase) {
-          // Title case and truncate phase string
-          const formatted = status.currentPhase.charAt(0).toUpperCase() + status.currentPhase.slice(1).split('\n')[0];
-          setStatusMessage(formatted);
+          const capitalized = status.currentPhase.charAt(0).toUpperCase() + status.currentPhase.slice(1);
+          setStatusMessage(capitalized.length > 50 ? capitalized.substring(0, 47) + "..." : capitalized);
         } else {
-          setStatusMessage(DEFAULT_MESSAGES[deriveStageIndex(null, pct)]);
+          setStatusMessage(GENERIC_MESSAGES[stage]);
         }
-
-        // Optional supplementary poll for progress
+        
         try {
-          const progressData = await getAuditProgress(auditId);
-          if (progressData && progressData.length > 0) {
-            setJustCrawled(progressData[0].url);
+          const prog = await getAuditProgress(auditId);
+          if (prog.length > 0) {
+            setRecentUrl(prog[0].url);
           }
         } catch (e) {
-          // Ignore failures on supplementary data
+          // Ignore failure for supplementary data
         }
-
+        
         if (status.status === "completed" || status.status === "failed") {
-          isTerminal.current = true;
+          active.current = false;
           
           pushHistoryEntry({
             id: status.id,
@@ -102,75 +98,71 @@ function LoadingContent() {
             startedAt: status.startedAt,
             completedAt: status.completedAt
           });
-
+          
           if (status.status === "completed") {
-            router.push(`/dashboard?auditId=${auditId}`);
+            router.push(`/dashboard?auditId=${encodeURIComponent(auditId)}`);
           } else {
-            router.push(`/audit-failed?auditId=${auditId}&errorCode=${status.errorCode || 'unknown'}&url=${encodeURIComponent(targetUrl)}`);
+            router.push(`/audit-failed?auditId=${encodeURIComponent(auditId)}&errorCode=${status.errorCode || "unknown"}&url=${encodeURIComponent(url)}`);
           }
-          return; // Stop polling
         }
-
-        timeoutId = setTimeout(poll, 2000);
-      } catch (error) {
-        pollFailures.current += 1;
+      } catch (e) {
+        pollFailures.current++;
         if (pollFailures.current >= 3) {
-          isTerminal.current = true;
-          router.push(`/audit-failed?auditId=${auditId}&errorCode=network_failure&url=${encodeURIComponent(targetUrl)}`);
-        } else {
-          timeoutId = setTimeout(poll, 2000); // Retry with backoff
+          active.current = false;
+          router.push(`/audit-failed?auditId=${encodeURIComponent(auditId)}&errorCode=network_error&url=${encodeURIComponent(url)}`);
         }
       }
     };
-
-    poll();
-    return () => clearTimeout(timeoutId);
-  }, [auditId, router, targetUrl]);
-
+    
+    poll(); 
+    const interval = setInterval(poll, 2000);
+    return () => {
+      active.current = false;
+      clearInterval(interval);
+    };
+  }, [auditId, router, url]);
+  
   const handleCancel = () => {
     if (auditId) {
-      deleteAudit(auditId).catch(() => {}); // Fire and forget best-effort
+      deleteAudit(auditId).catch(() => {});
     }
     router.push("/audit");
   };
 
   return (
-    <>
-      <div className={styles.targetDisplay}>Auditing {targetUrl}</div>
-      <div className={styles.progressSection}>
-        <AnimatedPipeline activeStage={stageIndex} />
-        <ProgressBar progress={progress} />
-        <div className={styles.statusContainer}>
-          <div className={styles.statusMessage}>{statusMessage}</div>
-          {justCrawled && <div className="body-sm">Just crawled: {justCrawled}</div>}
-        </div>
-        <div className="display-lg">{progress}%</div>
+    <div className={styles.loadingWrapper}>
+      <div className="heading-md">Target: {url}</div>
+      <div className="display-lg">{progress}%</div>
+      
+      <AnimatedPipeline stageIndex={stageIndex} />
+      <ProgressBar progress={progress} />
+      
+      <div className={styles.statusContainer}>
+        <div className={styles.statusMessage}>{statusMessage}</div>
+        {recentUrl && <div className={styles.recentUrl}>Just crawled: {recentUrl}</div>}
       </div>
-      <Button variant="secondary" onClick={() => setShowCancelModal(true)}>
-        Cancel Audit
-      </Button>
-
+      
+      <button className={styles.cancelBtn} onClick={() => setIsCanceling(true)}>Cancel</button>
+      
       <WarningModal 
-        isOpen={showCancelModal} 
-        onConfirm={handleCancel} 
-        onCancel={() => setShowCancelModal(false)}
-        title="Cancel Audit"
-        description="Are you sure you want to stop this audit? Progress will be lost."
+        isOpen={isCanceling}
+        onClose={() => setIsCanceling(false)}
+        onConfirm={handleCancel}
+        title="Cancel Audit?"
+        description="Are you sure you want to stop the current audit?"
       />
-    </>
+    </div>
   );
 }
 
 export default function LoadingPage() {
   return (
-    <div className={styles.page}>
+    <div className={styles.container}>
       <Header minimal />
       <main className={styles.main}>
-        <div className={styles.content}>
-          <Suspense fallback={<div>Loading...</div>}>
-            <LoadingContent />
-          </Suspense>
-        </div>
+        <Suspense fallback={<div>Loading...</div>}>
+          <LoadingState />
+        </Suspense>
       </main>
     </div>
   );

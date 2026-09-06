@@ -67,7 +67,7 @@ export interface LighthouseResult {
 export interface AuditIssue {
   id: string;
   type: string;
-  severity: "critical" | "warning" | "info";
+  severity: "critical" | "warning" | "notice";
   title: string;
   description: string;
   affectedUrls: string[];
